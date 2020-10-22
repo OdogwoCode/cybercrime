@@ -52,8 +52,391 @@ Add source files to the repository
     git commit -am "setup django project"
     git push
 
+Build ML algorithms
+    Setup Jupyter notebook
+        # run commands in your project directory
+        pip3 install jupyter notebook
 
-    
+        ipython kernel install --user --name=venv
+
+    I will create a research directory where I will put Jupiter files. To start Jupyter notebook run:
+
+        # create a research directory
+        mkdir research
+        cd research
+        # start Jupyter
+        jupyter notebook
+    When starting a new notebook make sure that you select the correct kernel, mlvenv 
+
+Train ML algorithms
+    Before building ML algorithms we need to install packages:  
+        pip3 install numpy pandas sklearn joblib
+
+
+jupyter notebook
+        import json # will be needed for saving preprocessing details
+        import numpy as np # for data manipulation
+        import pandas as pd # for data manipulation
+        from sklearn.model_selection import train_test_split # will be used for data split
+        from sklearn.preprocessing import LabelEncoder # for preprocessing
+        from sklearn.ensemble import RandomForestClassifier # for training the algorithm
+        from sklearn.ensemble import ExtraTreesClassifier # for training the algorithm
+        import joblib # for saving algorithm and preprocessing objects
+
+Loading data
+        # load dataset
+        df = pd.read_csv('https://raw.githubusercontent.com/pplonski/datasets-for-start/master/adult/data.csv', skipinitialspace=True)
+        x_cols = [c for c in df.columns if c != 'income']
+        # set input matrix and target column
+        X = df[x_cols]
+        y = df['income']
+        # show first rows of data
+        df.head()
+
+
+        # data split train / test
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=1234)
+
+Data pre-processing   
+
+        # fill missing values
+        train_mode = dict(X_train.mode().iloc[0])
+        X_train = X_train.fillna(train_mode)
+        print(train_mode)
+
+Let's convert categoricals into numbers. I will use LabelEncoder from sklearn package:
+
+        # convert categoricals
+        encoders = {}
+        for column in ['workclass', 'education', 'marital-status',
+                        'occupation', 'relationship', 'race',
+                        'sex','native-country']:
+            categorical_convert = LabelEncoder()
+            X_train[column] = categorical_convert.fit_transform(X_train[column])
+            encoders[column] = categorical_convert
+
+Algorithms training
+
+        # train the Random Forest algorithm
+        rf = RandomForestClassifier(n_estimators = 100)
+        rf = rf.fit(X_train, y_train)       
+
+
+We will also train Extra Trees algorithm:
+
+        # train the Extra Trees algorithm
+        et = ExtraTreesClassifier(n_estimators = 100)
+        et = et.fit(X_train, y_train)
+
+
+        # save preprocessing objects and RF algorithm
+        joblib.dump(train_mode, "./train_mode.joblib", compress=True)
+        joblib.dump(encoders, "./encoders.joblib", compress=True)
+        joblib.dump(rf, "./random_forest.joblib", compress=True)
+        joblib.dump(et, "./extra_trees.joblib", compress=True)
+
+
+Add ML code and artifacts to the repository
+Before continuing to the next chapter, let's add our notebook and files to the repository.
+
+        # execute in project main directory
+        git add research/*
+        git commit -am "add ML code and algorithms"
+        git push
+
+Django models
+        Create Django models
+
+        To create Django models we need to create a new app:
+
+        # run this in backend/server directory
+        python manage.py startapp endpoints
+        mkdir apps
+        mv endpoints/ apps/
+
+        # list files in apps/endpoints
+        ls apps/endpoints/
+        # admin.py  apps.py  __init__.py  migrations  models.py  tests.py  views.py
+
+apps/endpoints/models.py
+
+        from django.db import models
+
+class Endpoint(models.Model):
+    '''
+    The Endpoint object represents ML API endpoint.
+
+    Attributes:
+        name: The name of the endpoint, it will be used in API URL,
+        owner: The string with owner name,
+        created_at: The date when endpoint was created.
+    '''
+    name = models.CharField(max_length=128)
+    owner = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True)
+
+class MLAlgorithm(models.Model):
+    '''
+    The MLAlgorithm represent the ML algorithm object.
+
+    Attributes:
+        name: The name of the algorithm.
+        description: The short description of how the algorithm works.
+        code: The code of the algorithm.
+        version: The version of the algorithm similar to software versioning.
+        owner: The name of the owner.
+        created_at: The date when MLAlgorithm was added.
+        parent_endpoint: The reference to the Endpoint.
+    '''
+    name = models.CharField(max_length=128)
+    description = models.CharField(max_length=1000)
+    code = models.CharField(max_length=50000)
+    version = models.CharField(max_length=128)
+    owner = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True)
+    parent_endpoint = models.ForeignKey(Endpoint, on_delete=models.CASCADE)
+
+class MLAlgorithmStatus(models.Model):
+    '''
+    The MLAlgorithmStatus represent status of the MLAlgorithm which can change during the time.
+
+    Attributes:
+        status: The status of algorithm in the endpoint. Can be: testing, staging, production, ab_testing.
+        active: The boolean flag which point to currently active status.
+        created_by: The name of creator.
+        created_at: The date of status creation.
+        parent_mlalgorithm: The reference to corresponding MLAlgorithm.
+
+    '''
+    status = models.CharField(max_length=128)
+    active = models.BooleanField()
+    created_by = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True)
+    parent_mlalgorithm = models.ForeignKey(MLAlgorithm, on_delete=models.CASCADE, related_name = "status")
+
+class MLRequest(models.Model):
+    '''
+    The MLRequest will keep information about all requests to ML algorithms.
+
+    Attributes:
+        input_data: The input data to ML algorithm in JSON format.
+        full_response: The response of the ML algorithm.
+        response: The response of the ML algorithm in JSON format.
+        feedback: The feedback about the response in JSON format.
+        created_at: The date when request was created.
+        parent_mlalgorithm: The reference to MLAlgorithm used to compute response.
+    '''
+    input_data = models.CharField(max_length=10000)
+    full_response = models.CharField(max_length=10000)
+    response = models.CharField(max_length=10000)
+    feedback = models.CharField(max_length=10000, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True)
+    parent_mlalgorithm = models.ForeignKey(MLAlgorithm, on_delete=models.CASCADE)  
+
+#backend/server/server/settings.py,
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    # apps
+    'apps.endpoints'
+]
+
+
+        # please run it in backend/server directory
+        python manage.py makemigrations
+        python manage.py migrate
+
+
+Create REST API for models
+
+        pip3 install djangorestframework
+        pip3 install markdown       # Markdown support for the browsable API.
+        pip3 install django-filter  # Filtering support
+
+
+nd add it to INSTALLED_APPS in backend/server/server/settings.py:
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework', # add django rest framework
+    # apps
+    'apps.endpoints'
+]
+
+serializers.py file to server/apps/endpoints 
+
+
+# backend/server/apps/endpoints/serializers.py file
+from rest_framework import serializers
+from apps.endpoints.models import Endpoint
+from apps.endpoints.models import MLAlgorithm
+from apps.endpoints.models import MLAlgorithmStatus
+from apps.endpoints.models import MLRequest
+
+class EndpointSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Endpoint
+        read_only_fields = ("id", "name", "owner", "created_at")
+        fields = read_only_fields
+
+
+class MLAlgorithmSerializer(serializers.ModelSerializer):
+
+    current_status = serializers.SerializerMethodField(read_only=True)
+
+    def get_current_status(self, mlalgorithm):
+        return MLAlgorithmStatus.objects.filter(parent_mlalgorithm=mlalgorithm).latest('created_at').status
+
+    class Meta:
+        model = MLAlgorithm
+        read_only_fields = ("id", "name", "description", "code",
+                            "version", "owner", "created_at",
+                            "parent_endpoint", "current_status")
+        fields = read_only_fields
+
+class MLAlgorithmStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MLAlgorithmStatus
+        read_only_fields = ("id", "active")
+        fields = ("id", "active", "status", "created_by", "created_at",
+                            "parent_mlalgorithm")
+
+class MLRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MLRequest
+        read_only_fields = (
+            "id",
+            "input_data",
+            "full_response",
+            "response",
+            "created_at",
+            "parent_mlalgorithm",
+        )
+        fields =  (
+            "id",
+            "input_data",
+            "full_response",
+            "response",
+            "feedback",
+            "created_at",
+            "parent_mlalgorithm",
+        )
+
+backend/server/endpoints/views.py file
+
+# backend/server/apps/endpoints/views.py file
+from rest_framework import viewsets
+from rest_framework import mixins
+
+from apps.endpoints.models import Endpoint
+from apps.endpoints.serializers import EndpointSerializer
+
+from apps.endpoints.models import MLAlgorithm
+from apps.endpoints.serializers import MLAlgorithmSerializer
+
+from apps.endpoints.models import MLAlgorithmStatus
+from apps.endpoints.serializers import MLAlgorithmStatusSerializer
+
+from apps.endpoints.models import MLRequest
+from apps.endpoints.serializers import MLRequestSerializer
+
+class EndpointViewSet(
+    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = EndpointSerializer
+    queryset = Endpoint.objects.all()
+
+
+class MLAlgorithmViewSet(
+    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
+    serializer_class = MLAlgorithmSerializer
+    queryset = MLAlgorithm.objects.all()
+
+
+def deactivate_other_statuses(instance):
+    old_statuses = MLAlgorithmStatus.objects.filter(parent_mlalgorithm = instance.parent_mlalgorithm,
+                                                        created_at__lt=instance.created_at,
+                                                        active=True)
+    for i in range(len(old_statuses)):
+        old_statuses[i].active = False
+    MLAlgorithmStatus.objects.bulk_update(old_statuses, ["active"])
+
+class MLAlgorithmStatusViewSet(
+    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet,
+    mixins.CreateModelMixin
+):
+    serializer_class = MLAlgorithmStatusSerializer
+    queryset = MLAlgorithmStatus.objects.all()
+    def perform_create(self, serializer):
+        try:
+            with transaction.atomic():
+                instance = serializer.save(active=True)
+                # set active=False for other statuses
+                deactivate_other_statuses(instance)
 
 
 
+        except Exception as e:
+            raise APIException(str(e))
+
+class MLRequestViewSet(
+    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet,
+    mixins.UpdateModelMixin
+):
+    serializer_class = MLRequestSerializer
+    queryset = MLRequest.objects.all()
+
+URLs
+    Please add urls.py file in backend/server/apps/endpoints
+
+    # backend/server/apps/endpoints/urls.py file
+from django.conf.urls import url, include
+from rest_framework.routers import DefaultRouter
+
+from apps.endpoints.views import EndpointViewSet
+from apps.endpoints.views import MLAlgorithmViewSet
+from apps.endpoints.views import MLAlgorithmStatusViewSet
+from apps.endpoints.views import MLRequestViewSet
+
+router = DefaultRouter(trailing_slash=False)
+router.register(r"endpoints", EndpointViewSet, basename="endpoints")
+router.register(r"mlalgorithms", MLAlgorithmViewSet, basename="mlalgorithms")
+router.register(r"mlalgorithmstatuses", MLAlgorithmStatusViewSet, basename="mlalgorithmstatuses")
+router.register(r"mlrequests", MLRequestViewSet, basename="mlrequests")
+
+urlpatterns = [
+    url(r"^api/v1/", include(router.urls)),
+]
+
+http://<server-ip>/api/v1/<object-name>
+
+backend/server/server/urls.py
+
+# backend/server/server/urls.py file
+from django.conf.urls import url, include
+from django.contrib import admin
+from django.urls import path
+
+from apps.endpoints.urls import urlpatterns as endpoints_urlpatterns
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+]
+
+urlpatterns += endpoints_urlpatterns
+
+Run the server
+# in backend/server
+python manage.py runserver
+
+http://127.0.0.1:8000/api/v1/ in the web browser. 
