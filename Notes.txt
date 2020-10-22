@@ -1,0 +1,59 @@
+START
+    What you will learn in this chapter:
+
+    how to set up a git repository,
+    setup environment for development (I will use Ubuntu 16.04),
+    install required packages,
+    start the Django project.
+
+virtual environment
+    mlvenv
+
+Setup git repository
+    create a new repository
+        my_ml_service
+        licencse: MIT
+        gitignore:python
+        Readme
+
+    full code of this tutorial is available at: https://github.com/pplonski/my_ml_service.
+
+Terminal
+    git clone https://github.com/pplonski/my_ml_service.git
+    cd my_ml_service
+    ls -1
+
+Installation
+
+    for ubuntu(16.04)
+        
+        virtualenv venv --python=python3.6
+        source venv/bin/activate
+
+        pip3 install django==2.2.4
+    
+    for virtualenvwrapper
+        pip install virtualenvwrapper-win
+        mkvirtualenv mlvenv
+        workon mlvenv
+Start Django project
+    mkdir backend
+    cd backend
+    django-admin startproject server
+    cd server
+    python manage.py runserver
+    enter 127.0.0.1:8000 in your favorite web browser 
+
+
+Add source files to the repository
+
+    # please execute it in your main project directory
+    git add backend/
+    git commit -am "setup django project"
+    git push
+
+
+    
+
+
+
