@@ -137,6 +137,7 @@ We will also train Extra Trees algorithm:
         joblib.dump(rf, "./random_forest.joblib", compress=True)
         joblib.dump(et, "./extra_trees.joblib", compress=True)
 
+____________________________________
 
 Add ML code and artifacts to the repository
 Before continuing to the next chapter, let's add our notebook and files to the repository.
