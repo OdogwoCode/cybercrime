@@ -158,7 +158,7 @@ Django models
         Create Django models
 
         To create Django models we need to create a new app:
-
+__________________________________________
         # run this in backend/server directory
         python manage.py startapp endpoints
         mkdir apps
@@ -251,6 +251,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework', # add django rest framework
     # apps
     'apps.endpoints'
 ]
@@ -405,6 +406,8 @@ class MLRequestViewSet(
 ):
     serializer_class = MLRequestSerializer
     queryset = MLRequest.objects.all()
+____________________________________________
+
 
 URLs
     Please add urls.py file in backend/server/apps/endpoints
@@ -445,8 +448,11 @@ urlpatterns = [
 
 urlpatterns += endpoints_urlpatterns
 
+
+___________________________________________
 Run the server
 # in backend/server
 python manage.py runserver
+pen http://127.0.0.1:8000/api/v1/ in the web browser. You should see DRF view
 
 http://127.0.0.1:8000/api/v1/ in the web browser. 
