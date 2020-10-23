@@ -1,3 +1,10 @@
+Run
+backend/server
+    python manage.py runserver
+
+backend/research
+    jupyter notebook
+
 START
     What you will learn in this chapter:
 
